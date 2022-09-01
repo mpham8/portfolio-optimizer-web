@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block head %}
+
+{% endblock %}
+
+{% block body %}
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+<title>Optimizer</title>
+</head>
+<body class="bg-dark">
+<div class="container">
+  <div class="row">
+    <div class="col-md-6 mx-auto">
+
+      <div>
+        <h1 class="heading-display-5 pb-3" style="color:rgb(66, 90, 195)">Karner Blue Capital Portfolio Optimizer</h1>
+      </div>
+
+      <div id="totals" class="card card-body mt-5">
+        <h3 class="heading-display-5 pb-3">upload stocks.csv</h3>
+        <div class="form-group" >
+          <form action="/upload" method="POST" enctype="multipart/form-data">
+            <label for="file"></label>
+            <input type="file" id="file" name="file"><br />
+            <button>Upload</button>
+          </form>
+        </div>
+      </div>
+      
+
+
+      <form id="master-form" method="POST" action="/calculate">
+
+        <div id="prediction-card" class="card card-body mt-5">
+          <h3 class="heading-display-5 pb-3">settings</h3>
+          
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">simulation month</span>
+              <input id="simulation_month" name="simulation_month" class="form-control" placeholder="yyyy-mm" >
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">years data</span>
+              <input id="years_data" name="years_data" class="form-control" placeholder="integer" value="6">
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">min position size</span>
+              <input id="min_position_size" name="min_position_size" class="form-control" placeholder="proportion" value="0.005">
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">max position size</span>
+              <input id="max_position_size" name="max_position_size" class="form-control" placeholder="proportion" value="0.02">
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">pricing model</span>
+              <select id="pricing_model" name="pricing_model" class="form-control">
+                <option value="three">Fama-French Three Factor</option>
+                <option value="five">Fama-French Five Factor</option>
+                <option value="mean">Mean Historical Return</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">risk model</span>
+              <select id="risk_model" name="risk_model" class="form-control">
+                <option value="semivariance">Semivariance</option>
+                <option value="varuance">Variance</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">objective function</span>
+              <select id="objective_function" name="objective_function" class="form-control">
+                <option value="sharpe">Max Sharpe</option>
+                <option value="target">Min Volatility for Target Return</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">target return</span>
+              <input id="target_return" name="target_return" class="form-control" placeholder="percentags" value = "15">
+              </select>
+            </div>
+          </div>
+
+        </div>
+
+
+        <div id="totals" class="card card-body mt-5">
+          <h3 class="heading-display-5 pb-3">run optimizer</h3>
+          <div class = "input-group">
+            
+          
+
+          </div>
+          <!-- <a href="/optimize"> -->
+          <input type="submit" value="calculate" class="btn btn-dark btn-block">
+            <!-- <input type="submit" value="Calculate" class="btn btn-dark btn-block" action="#" > -->
+          <!-- </a> -->
+          
+        </div>
+
+        
+
+        <div id="totals" class="card card-body mt-5">
+          <div class="form-group">
+          </div>
+          <h3 class="heading-display-5 pb-3">prediction</h3>
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">expected return</span>
+              <input type="number" class="form-control" id="expected_return" disabled>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-group">
+              <span class="input-group-addon">variance</span>
+              <input type="number" class="form-control" id="variance_amount" disabled>
+            </div>
+          </div>
+        </div>
+
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

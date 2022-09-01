@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "../markowitz-portfolio-optimizer"
+		},
+		{
+			"path": "../portfolio-optimizer-s22"
+		},
+		{
+			"path": "../Quilt"
+		},
+		{
+			"path": "../flask-tutorial"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "Quilt"
+	}
+}
