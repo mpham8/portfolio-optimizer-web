@@ -1,10 +1,11 @@
-#from statistics import covariance
+"""
+Portfolio Optimizer
+Michael Pham, Summer 2022
+"""
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
-# from pypfopt import EfficientFrontier
-# from pypfopt import risk_models
-# from pypfopt import expected_returns
 import statsmodels.formula.api as smf
 import getFamaFrenchFactors as gff
 import csv
@@ -14,22 +15,28 @@ import random as rd
 
 
 def read_in_csv():
-  
+  """
+  reads in spreadsheet csv of tickers
+  returns list of tickers
+  """
   csv_df = pd.read_csv ('stocks.csv')
   stocks = []
-  for i in range(len(csv_df)): #len(df)
+  for i in range(len(csv_df)):
     stocks.append(csv_df.loc[i, 'Tickers'])
-  
+
 
   return stocks
 
 
-def get_data_set(investable_universe_ls, yf_format_start_date, yf_format_end_date):
 
+def get_data_set(investable_universe_ls, yf_format_start_date, yf_format_end_date):
+  """
+  takes list of tickers, start/end dates as parameters
+  returns data frame of historical price data for all tickers
+  """
   yfinance_input_string = ""
   for ticker in investable_universe_ls:
     yfinance_input_string += (ticker + " ")
-  
   df = yf.download(yfinance_input_string, start=yf_format_start_date, end=yf_format_end_date, auto_adjust = True).Close
   
 
@@ -38,16 +45,15 @@ def get_data_set(investable_universe_ls, yf_format_start_date, yf_format_end_dat
 
 
 def get_dates(simulation_date, years_data):
-  #START DATE = 'YYYY-MM'
-
+  """
+  from simulation start data and years of historical data requested,
+  returns the start and end dates for the historical data
+  """
   end_year = simulation_date[:4]
   end_month = simulation_date[5:]
 
-
   start_year = str(int(end_year) - years_data)
   start_month = end_month
-
-  #data_start_date = start_month + '-' + end
 
   yf_format_start_date = start_year + '-' + start_month + '-' + '01'
   yf_format_end_date = end_year + '-' + end_month + '-' + '01'
@@ -58,133 +64,161 @@ def get_dates(simulation_date, years_data):
 
 
 def fama_french(stock_data_resample, ticker, start, end, factor):
-  
+  """
+  calculates expected return for each ticker
+  """
+
+  #fetch fama french spreads from fama french library
   df_ff5_monthly = gff.famaFrench5Factor(frequency='m')
+
+  #merges fama french spreads with historical price data and formats into one data frame
   df_ff5_monthly = df_ff5_monthly.loc[(df_ff5_monthly['date_ff_factors'] >= start) & (df_ff5_monthly['date_ff_factors'] < end)]
-  
-  #print(stock_data_resample) #WRONG HERE
-  #print(df_ff5_monthly)
-  
   df = pd.merge(stock_data_resample, df_ff5_monthly, left_on='Date', right_on='date_ff_factors')
   df['Excess'] = df[ticker] - df['RF']
   df['MKT'] = df['Mkt-RF']
-  #print(df)
 
+  #runs when running fama french five factor model
   if factor == 'five':
+    #runs multiple linear regression to find beta coefficients
     fama_lm = smf.ols(formula = 'Excess ~ MKT + SMB + HML + RMW + CMA', data = df).fit()
     intercept, b1, b2, b3, b4, b5 = fama_lm.params
     rf = df['RF'].mean()
 
+    #gets average fama french spreads for period
     market_premium = df['Mkt-RF'].mean()
     size_premium = df['SMB'].mean()
     value_premium = df['HML'].mean()
     quality_premium = df['RMW'].mean()
     investment_premium = df['CMA'].mean()
+
+    #uses beta coefficients and fama french spreads to get expected monthly return
     expected_monthly_return = (rf + b1 * market_premium + b2 * size_premium + b3 * value_premium + b4 * quality_premium + b5 * investment_premium)
   
+
     return expected_monthly_return * 12
 
+
+
+  #runs when running fama french three factor model
   elif factor == 'three':
+    #runs multiple linear regression to find beta coefficients
     fama_lm = smf.ols(formula = 'Excess ~ MKT + SMB + HML', data = df).fit()
     intercept, b1, b2, b3 = fama_lm.params
     rf = df['RF'].mean()
-    #print(rf)
-
-    # print(b1)
-    # print(b2)
-    # print(b3)
-
-
+    
+    #gets average fama french spreads for period
     market_premium = df['Mkt-RF'].mean()
     size_premium = df['SMB'].mean()
     value_premium = df['HML'].mean()
+
+    #uses beta coefficients and fama french spreads to get expected monthly return
     expected_monthly_return = (rf + b1 * market_premium + b2 * size_premium + b3 * value_premium)
     
-
+  
     return expected_monthly_return * 12
 
+  #runs when running historical mean model
   elif factor == 'mean':
     return df[ticker].mean() * 12
 
 
 
 def calculate_covariance(investable_universe_ls, stock_data_resample):
-  #standard_deviation_df = stock_data_resample.std()
-  print(stock_data_resample)
-  
+  """
+  calculates and returns covariance matrix
+  """
   covariance_matrix = stock_data_resample.cov()
+
 
   return covariance_matrix
 
-def calculate_bmatrix(investable_universe_ls, df, reference_return):
-  t = len(df)
-  # print(t)
 
+
+def calculate_bmatrix(investable_universe_ls, df, reference_return):
+  """
+  calculates and returns b matrix
+  """
+  
+  #gets t, an integer that represents time periods
+  t = len(df)
+
+  #calculate t x 1 vector (greek letter i) that fits needs of equation
   filler_vector = []
   for h in range(t):
     filler_vector.append([1])
   filler_vector = np.array(filler_vector)
-  # print(filler_vector)
 
-
+  #calculate t x n Matrix R where there are n variables
   r_matrix = df
-  # print(r_matrix)
-
+  
+  #calculate 1 x t vector e
   e = []
-
   for h in range(len(df.columns)):
     e.append(reference_return)
-  # print(e)
-
-
   e_vector = np.array([e,])
-  # print(e_vector)
-
   e_matrix = np.matmul(filler_vector, e_vector)
-  # print(e_matrix)
 
+  #calculate t x n Matrix B
   b_matrix = ( 1/np.sqrt(t) ) * (r_matrix - e_matrix)
-  # print(b_matrix)
+  
 
-
-  #print(b_matrix)
   return b_matrix
 
 
+
 def calculate_portfolio_return(weights, mu):
+  """
+  retuns expected portfolio return
+  """
   transpose_weights = np.transpose(weights)
-  # print(weights)
-  # print(mu)
+  
+
   return transpose_weights.dot(mu)
 
+
+
 def calculate_portfolio_variance(weights, covariance_matrix):
+  """
+  returns portfolio variance
+  """
+
+  #multiplies transposed weights vector by covariance matrix by weights vector to get portfolio variance
   portfolio_variance = np.transpose(weights)@covariance_matrix@weights
+
+  #takes square root of variance to get standard deviation
   portfolio_volatility = np.sqrt(portfolio_variance)
+
 
   return portfolio_volatility
 
+
+
 def calculate_portfolio_semivariance(weights, b_matrix):
-  
+  """
+  returns portfolio semivariance
+  """
   weights_vector = np.array(weights)
 
+  #create matrix A which is (x^t B^t)^-
   a = np.transpose(weights_vector)@np.transpose(b_matrix) #need transpose
   num = a._get_numeric_data()
   num[num > 0] = 0
 
+  #create matrix B which is (Bx)^-
   b = b_matrix@weights_vector
   num = b._get_numeric_data()
   num[num > 0] = 0
 
   a = a.dropna()
   b = b.dropna()
-  # print(a)
-  # print(b)
-
+  
+  #multiple matrix A and matrix B to get semivariance
   semivariance = a@b
 
-  # print(semivariance)
 
   return np.sqrt(semivariance)
+
+
 
 def monthly_resample(data):
   stock_data_adj_close = data.dropna()
@@ -249,7 +283,6 @@ def main(simulation_date, years_data, min_position_size, max_position_size, mu_m
   
   
   data_set = get_data_set(investable_universe_ls, yf_format_start_date, yf_format_end_date)
-  #print(data_set)
 
   #resample monthly stock data
   for ticker in investable_universe_ls:
@@ -266,24 +299,16 @@ def main(simulation_date, years_data, min_position_size, max_position_size, mu_m
   #get expected return for all stocks, returns df
   exp_return = []
   for i in range(len(investable_universe_ls)):
-    #ticker = investable_universe_ls[i]
+    
     mu_individual = fama_french(resample_monthly_df, investable_universe_ls[i], yf_format_start_date, yf_format_end_date, mu_method)
-    #print(mu_individual)
+    
     exp_return.append(mu_individual)
   mu = pd.Series(exp_return, index=investable_universe_ls)
 
   mu_df = mu.to_list()
   results_to_csv(mu_df, investable_universe_ls, 'expectedreturns.csv')
 
-  # file_name = 'expectedreturns-' + str(simulation_date) + '.csv'
-  # f = open(file_name, "w")
-  # f.close()
-  # results_to_csv(mu_df, investable_universe_ls, file_name)
-
-  #print(mu)
-  # for x in mu:
-  #   print(x)
-  print(mu.mean())
+  
 
   #get covariance
   # variance = 'semivariance'
@@ -291,15 +316,11 @@ def main(simulation_date, years_data, min_position_size, max_position_size, mu_m
     bmatrix = calculate_bmatrix(investable_universe_ls, resample_daily_df, 0)
   elif variance == 'covariance':
     covariance_matrix = calculate_covariance(investable_universe_ls, resample_daily_df)
-  
-  #covariance_matrix = calculate_semicovariance(investable_universe_ls, resample_daily_df)
-  
+    
     print(covariance_matrix)
 
   
   #SIM - turn into function later:
-
-  #weights = [0.25, 0.35, 0.4]
 
   number_stocks = len(investable_universe_ls)
 
@@ -307,51 +328,10 @@ def main(simulation_date, years_data, min_position_size, max_position_size, mu_m
   all_volatilities = [] #stores volatilities
   all_weights = [] #store weights
 
+  #set amount of portfolios to simulate
   portfolios = 50000
 
 
-  #max_position_size
-
-  # for i in range(portfolios):
-  #   # weights = np.random.random(number_stocks)
-    
-  #   weights = []
-  #   num_zero = random.randint(0, number_stocks//2)
-  #   num_nonzero = number_stocks - num_zero
-
-  #   for i in range(num_zero):
-  #     weights.append(0)
-  #   for i in range(num_nonzero):
-  #     value = random.randint(1, 10)
-  #     weights.append(value)
-
-  # for i in range(portfolios):
-  #   weights = []
-  #   accumulator = 0
-  #   max_int = int(max_position_size * 10) 
-  #   for j in range(number_stocks):
-  #     if (1 - accumulator) < max_position_size:
-  #       weights.append(1 - accumulator)
-  #       break
-  #     else:
-  #       value = random.randint(0,max_int)/10
-  #       weights.append(value)
-  #       accumulator += value
-  #   if len(weights) != 0:
-  #     zeros = 1 - len(weights)
-  #     for k in range(zeros):
-  #       weights.append(0)
-  #   if np.sum(weights) == 1:
-  #     #weights = weights/np.sum(weights)
-  #     random.shuffle(weights)
-  
-  prob_weighting = [0.275, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.275]
-  #prob_weighting = [0.3, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07]
-  #prob_weighting = [0.75, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.16]
-
-  #prob_weighting = [0.32, 0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.32]
-
-  #UNCOMMENT
 
   min_basis_points = min_position_size * 10000
   max_basis_points = max_position_size * 10000
@@ -391,33 +371,6 @@ def main(simulation_date, years_data, min_position_size, max_position_size, mu_m
         break
     rd.shuffle(weights)
 
-
-    # weights = np.random.random(number_stocks)
-    # weights /= np.sum(weights)
-    #print(weights)
-  
-  
-  # for portfolio in range(portfolios):
-  #   weights = []
-  #   accumulator = 0
-  #   for element in range(number_stocks):
-  #     if 1 - accumulator >= max_position_size:
-  #       odds_max = random.choice([0,1,2,3])
-  #       if odds_max == 0:
-  #         value = max_position_size
-  #       else:
-  #         value = random.uniform(0, max_position_size)
-  #       weights.append(value)
-  #       accumulator += value
-  #     else:
-  #       value = 1 - accumulator
-  #       weights.append(value)
-  #       zeros_to_fill = number_stocks - len(weights)
-  #       for i in range(zeros_to_fill):
-  #         weights.append(0)
-  #       random.shuffle(weights)
-  #       break
-    
     
     if (all(x <= max_position_size for x in weights)):
       all_weights.append(weights)
@@ -484,18 +437,3 @@ def main(simulation_date, years_data, min_position_size, max_position_size, mu_m
   # #print(target_weights)
 
   return best_return, best_volatility
-
-  #target_weights = get_target(portfolios_df, target)
-  #print(target_weights)
-
-  # rf = 0.0244
-
-  # sharpe = 
-
-  #maximise sharpe ratio/target
-
-
-  #write results to csv
-
-
-#main('2016-06', 5, 0.005, 0.02, 'three', 'target', 0.15)
